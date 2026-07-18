@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SoloBuch — Buchhaltung für Einzel- und Kleinunternehmer</title>
+<!-- "Zum Home-Bildschirm hinzufügen" auf iOS/Android: Vollbild ohne Browserleiste, eigenes Icon -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SoloBuch">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#184f95">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --surface-1:#fcfcfb;
+    --page:#f9f9f7;
+    --ink-1:#0b0b0b;
+    --ink-2:#52514e;
+    --ink-muted:#898781;
+    --grid:#e1e0d9;
+    --baseline:#c3c2b7;
+    --border:rgba(11,11,11,0.10);
+    --brand:#184f95;
+    --brand-2:#256abf;
+    --brand-light:#cde2fb;
+    --good:#0ca30c;
+    --warning:#fab219;
+    --serious:#ec835a;
+    --critical:#d03b3b;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:var(--page);
+    color:var(--ink-1);
+    font-size:15px;
+  }
+  button{font-family:inherit;}
+  input,select{font-family:inherit;}
+  /* ---------- Layout ---------- */
+  #app-shell{display:none; min-height:100vh;}
+  #app-shell.active{display:flex;}
+  .sidebar{
+    width:220px; flex:0 0 220px; background:var(--surface-1);
+    border-right:1px solid var(--border); padding:20px 14px;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .brand{display:flex; align-items:center; gap:8px; padding:6px 10px 20px 10px;}
+  .brand .logo{width:28px;height:28px;border-radius:8px;background:var(--brand);flex:0 0 28px;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+  .brand .name{font-weight:700; font-size:16px; color:var(--ink-1);}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px;
+    color:var(--ink-2); cursor:pointer; font-size:14px; font-weight:500; user-select:none;
+  }
+  .nav-item:hover{background:var(--page);}
+  .nav-item.active{background:var(--brand-light); color:var(--brand); font-weight:700;}
+  .nav-item .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0;}
+  .nav-item.active .dot{opacity:1;}
+  .sidebar-footer{margin-top:auto; padding-top:14px; border-top:1px solid var(--border);}
+  .badge-mode{
+    font-size:11px; color:var(--ink-muted); padding:8px 10px; line-height:1.4;
+  }
+  .badge-mode strong{color:var(--ink-2); display:block; font-size:12px;}
+  .main{flex:1; padding:28px 36px; max-width:1100px; overflow-y:auto;}
+  .bottom-nav{display:none;}
+  .topbar{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px;}
+  .topbar h1{font-size:22px; margin:0 0 4px 0;}
+  .topbar p{margin:0; color:var(--ink-2); font-size:13.5px;}
+  .lang-toggle{display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; height:32px;}
+  .lang-toggle button{
+    border:none; background:var(--surface-1); padding:0 12px; font-size:12.5px; font-weight:600;
+    color:var(--ink-2); cursor:pointer;
+  }
+  .lang-toggle button.active{background:var(--brand); color:#fff;}
+  /* ---------- Cards / KPIs ---------- */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;}
+  .card{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .kpi .label{font-size:12px; color:var(--ink-muted); font-weight:600; text-transform:uppercase; letter-spacing:.02em;}
+  .kpi .value{font-size:24px; font-weight:700; margin-top:6px;}
+  .kpi .sub{font-size:12.5px; color:var(--ink-2); margin-top:4px;}
+  .profit-eq{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:14px;}
+  .profit-item{flex:1; min-width:130px;}
+  .profit-item.result{border-color:var(--brand); background:var(--brand-light);}
+  .profit-item.result .value{color:var(--brand); font-size:28px;}
+  .profit-op{font-size:22px; color:var(--ink-muted); font-weight:300;}
+  .profit-footnote{margin:0; font-size:12.5px; color:var(--ink-2); line-height:1.55;}
+  .status-pill{
+    display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 8px; border-radius:999px;
+    font-size:12.5px; font-weight:700;
+  }
+  .status-pill .swatch{width:8px;height:8px;border-radius:50%;}
+  .status-good{background:rgba(12,163,12,0.10); color:#0a7f0a;}
+  .status-good .swatch{background:var(--good);}
+  .status-warning{background:rgba(250,178,25,0.16); color:#8a5c00;}
+  .status-warning .swatch{background:var(--warning);}
+  .status-critical{background:rgba(208,59,59,0.10); color:var(--critical);}
+  .status-critical .swatch{background:var(--critical);}
+  .progress-wrap{margin-top:10px;}
+  .progress-track{height:8px; border-radius:6px; background:var(--grid); overflow:hidden;}
+  .progress-fill{height:100%; border-radius:6px; background:var(--brand-2); transition:width .3s ease;}
+  .progress-fill.warning{background:var(--warning);}
+  .progress-fill.critical{background:var(--critical);}
+  .progress-caption{display:flex; justify-content:space-between; font-size:11.5px; color:var(--ink-muted); margin-top:5px;}
+  section.block{margin-bottom:28px;}
+  section.block h2{font-size:15px; margin:0 0 12px 0;}
+  .two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:16px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th{text-align:left; font-size:11.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.02em;
+     font-weight:600; padding:8px 10px; border-bottom:1px solid var(--grid);}
+  td{padding:9px 10px; border-bottom:1px solid var(--grid); color:var(--ink-1);}
+  tr:last-child td{border-bottom:none;}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .muted{color:var(--ink-muted);}
+  .empty-row td{color:var(--ink-muted); text-align:center; padding:22px 10px; font-size:13px;}
+  .btn{
+    border:none; border-radius:8px; padding:9px 16px; font-size:13.5px; font-weight:700; cursor:pointer;
+    background:var(--brand); color:#fff;
+  }
+  .btn:hover{background:var(--brand-2);}
+  .btn.secondary{background:var(--page); color:var(--ink-1); border:1px solid var(--border);}
+  .btn.secondary:hover{background:#efeee9;}
+  .btn.small{padding:6px 11px; font-size:12.5px;}
+  .btn.danger{background:#fff; color:var(--critical); border:1px solid rgba(208,59,59,0.35);}
+  .btn-row{display:flex; gap:10px; margin-top:16px;}
+  .section-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .note{
+    background:var(--brand-light); border:1px solid rgba(24,79,149,0.18); border-radius:8px;
+    padding:11px 14px; font-size:13px; color:#123b70; line-height:1.5;
+  }
+  .note.warn{background:rgba(250,178,25,0.14); border-color:rgba(250,178,25,0.35); color:#7a5200;}
+  .note.plain{background:var(--page); border-color:var(--border); color:var(--ink-2);}
+  /* ---------- Onboarding ---------- */
+  #onboarding{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:30px;
+  }
+  .wizard{width:560px; max-width:100%;}
+  .wizard-steps{display:flex; gap:6px; margin-bottom:22px;}
+  .wizard-steps div{height:4px; flex:1; border-radius:3px; background:var(--grid);}
+  .wizard-steps div.done{background:var(--brand);}
+  .wizard-card{background:var(--surface-1); border:1px solid var(--border); border-radius:14px; padding:30px 32px;}
+  .wizard-card h2{margin:0 0 6px 0; font-size:19px;}
+  .wizard-card>p.lead{color:var(--ink-2); font-size:13.5px; margin:0 0 22px 0;}
+  .choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .choice-card{
+    border:1.5px solid var(--border); border-radius:10px; padding:16px; cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .choice-card:hover{border-color:var(--brand-2);}
+  .choice-card.selected{border-color:var(--brand); background:var(--brand-light);}
+  .choice-card .title{font-weight:700; font-size:14.5px; margin-bottom:4px;}
+  .choice-card .desc{font-size:12.5px; color:var(--ink-2); line-height:1.45;}
+  .field{margin-top:16px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-2); margin-bottom:6px;}
+  .field input, .field select{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); font-size:13.5px;
+    background:#fff; color:var(--ink-1);
+  }
+  .checkbox-row{display:flex; gap:9px; align-items:flex-start; margin-top:14px; font-size:13px; color:var(--ink-2); line-height:1.5;}
+  .checkbox-row input{margin-top:3px;}
+  /* ---------- Modal ---------- */
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(11,11,11,0.35); align-items:center; justify-content:center; z-index:50;
+  }
+  .modal-backdrop.active{display:flex;}
+  .modal{width:480px; max-width:92vw; max-height:88vh; overflow-y:auto; background:var(--surface-1); border-radius:14px; padding:26px 28px;}
+  .modal h3{margin:0 0 4px 0; font-size:17px;}
+  .modal p.lead{margin:0 0 18px 0; color:var(--ink-2); font-size:13px;}
+  .modal-close{float:right; border:none; background:none; font-size:18px; color:var(--ink-muted); cursor:pointer;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  pre.code-block{
+    background:#0d0d0d; color:#d7f7d7; padding:14px; border-radius:8px; font-size:11.5px;
+    overflow-x:auto; max-height:280px; white-space:pre-wrap; word-break:break-all;
+  }
+  .tag{display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--page); color:var(--ink-2); border:1px solid var(--border);}
+  .position-row{display:grid; grid-template-columns:2fr 0.7fr 1fr auto; gap:8px; align-items:end;}
+  .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  /* ---------- Mobile (phone) layout ---------- */
+  @media (max-width:720px){
+    body{font-size:15.5px;}
+    #app-shell.active{flex-direction:column;}
+    .sidebar{
+      width:100%; flex:0 0 auto; flex-direction:row; align-items:center; justify-content:space-between;
+      border-right:none; border-bottom:1px solid var(--border); padding:12px 16px;
+    }
+    .sidebar .nav-item{display:none;}
+    .sidebar .brand{padding:0;}
+    .sidebar-footer{margin-top:0; padding-top:0; border-top:none;}
+    .badge-mode{padding:0; text-align:right;}
+    .main{padding:18px 16px 90px 16px; max-width:100%;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .two-col{grid-template-columns:1fr;}
+    .profit-eq{flex-direction:column; align-items:stretch; gap:8px;}
+    .profit-op{display:none;}
+    .choice-grid{grid-template-columns:1fr;}
+    .wizard-card{padding:22px 18px;}
+    #onboarding{padding:18px; align-items:flex-start; padding-top:36px;}
+    .modal{width:94vw; max-height:85vh; padding:20px;}
+    .grid-2{grid-template-columns:1fr;}
+    .position-row{grid-template-columns:1fr; gap:6px;}
+    table{font-size:12.5px;}
+    th, td{padding:8px 6px;}
+    .topbar{flex-wrap:wrap; gap:10px;}
+    .topbar h1{font-size:19px;}
+    .kpi-row{gap:10px;}
+    .bottom-nav{
+      display:flex; position:fixed; bottom:0; left:0; right:0; z-index:30;
+      background:var(--surface-1); border-top:1px solid var(--border);
+      padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px)) 4px;
+      justify-content:space-around;
+    }
+    .bottom-nav-item{
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:2px; padding:8px 4px 6px 4px; color:var(--ink-muted); font-size:11px; font-weight:600;
+      cursor:pointer; border-top:2px solid transparent; user-select:none;
+    }
+    .bottom-nav-item.active{color:var(--brand); border-top-color:var(--brand); font-weight:700;}
+  }
+</style>
+</head>
+<body>
+<noscript>
+  <div style="font-family:system-ui,sans-serif; max-width:480px; margin:60px auto; padding:24px; background:#fff3f3; border:1px solid #e8b4b4; border-radius:12px; color:#0b0b0b;">
+    <strong>JavaScript ist deaktiviert.</strong><br><br>
+    Diese App benötigt JavaScript. Bitte öffne die Datei direkt in Safari oder Chrome (nicht in einer Mail-, WhatsApp- oder Dateien-Vorschau).
+  </div>
+</noscript>
+<!-- Wird durch renderOnboarding()/renderApp() ersetzt. Bleibt das hier stehen, hat JavaScript nicht ausgeführt. -->
+<div id="boot-fallback" style="font-family:system-ui,sans-serif; max-width:480px; margin:60px auto; padding:24px; text-align:center; color:#52514e;">
+  Wird geladen …
+</div>
+<!-- ============= ONBOARDING ============= -->
+<div id="onboarding"></div>
+<!-- ============= APP SHELL ============= -->
+<div id="app-shell">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main" id="main"></div>
+  <div class="bottom-nav" id="bottom-nav"></div>
+</div>
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+<script>
+/* =========================================================================
+   SoloBuch — klickbarer Demo-Prototyp
+   Reines Frontend, alle Daten nur im Arbeitsspeicher (kein Server, keine
+   Speicherung). Ziel: Kernabläufe aus dem Konzeptpapier erlebbar machen.
+   ========================================================================= */
+/* ---------------------------- Fehler sichtbar machen ----------------------------
+   Ohne das hier würde ein Fehler beim Start nur eine leere weiße Seite zeigen
+   (der ganze Inhalt wird per JS gerendert). So sieht man stattdessen, was los ist. */
+function showBootError(msg){
+  var el = document.getElementById('boot-fallback');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'boot-fallback';
+    document.body.prepend(el);
+  }
+  el.style.cssText = 'font-family:system-ui,sans-serif; max-width:520px; margin:40px auto; padding:20px; text-align:left; color:#0b0b0b; background:#fff3f3; border:1px solid #e8b4b4; border-radius:12px; white-space:pre-wrap; font-size:14px;';
+  el.textContent = 'Es gab ein Problem beim Start der App:\n\n' + msg + '\n\nBitte mach einen Screenshot von dieser Meldung.';
+}
+window.addEventListener('error', function(e){
+  showBootError((e && e.message) ? e.message : String(e));
+});
+const state = {
+  lang: 'de',
+  onboarded: false,
+  step: 1,
+  status: null,          // 'einzel' | 'neben'
+  hauptjobIncome: 0,
+  ustModel: null,        // 'klein' | 'regel'
+  bindingAck: false,
+  gruendung: todayISO(),
+  screen: 'dashboard',
+  invoices: [],
+  expenses: [],
+  invoiceCounter: 0,
+  profile: { name:'', strasse:'', plzOrt:'', steuernummer:'' }
+};
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function fmtMoney(n){
+  return new Intl.NumberFormat(state.lang==='de' ? 'de-DE' : 'en-DE', {style:'currency', currency:'EUR'}).format(n||0);
+}
+function fmtDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  return new Intl.DateTimeFormat(state.lang==='de' ? 'de-DE' : 'en-GB').format(d);
+}
+/* ---------------------------- i18n ---------------------------- */
+const I18N = {
+  de:{
+    appName:'SoloBuch',
+    tagline:'Buchhaltung für Einzel- und Kleinunternehmer',
+    nav_dashboard:'Übersicht', nav_invoices:'Rechnungen', nav_expenses:'Belege',
+    nav_reserve:'Steuerrücklage', nav_threshold:'Grenzwert-Wächter', nav_settings:'Einstellungen', nav_more:'Mehr',
+    onboard_welcome_title:'Willkommen bei SoloBuch',
+    onboard_welcome_lead:'Zwei kurze Fragen — danach zeigt dir die App nur noch, was für dich relevant ist.',
+    step1_title:'Wie bist du unterwegs?',
+    step1_lead:'Das bestimmt, wie deine Steuerrücklage berechnet wird.',
+    einzel_title:'Einzelunternehmen',
+    einzel_desc:'Hauptberuflich selbstständig — die Selbstständigkeit ist deine einzige oder wichtigste Einkommensquelle.',
+    neben_title:'Nebengewerbe',
+    neben_desc:'Nebenberuflich, mit Hauptjob im Hintergrund. Dein Nebeneinkommen wird steuerlich auf dein Hauptjob-Einkommen aufgeschlagen.',
+    hauptjob_label:'Ungefähres Jahresbrutto aus dem Hauptjob (optional, für genauere Steuerrücklage)',
+    step2_title:'Wie handhabst du die Umsatzsteuer?',
+    step2_lead:'Diese Wahl gilt unabhängig davon, ob Einzelunternehmen oder Nebengewerbe.',
+    klein_title:'Kleinunternehmer (§19 UStG)',
+    klein_desc:'Keine Umsatzsteuer auf Rechnungen, dafür kein Vorsteuerabzug. Möglich bis 25.000 € Vorjahresumsatz / 100.000 € laufender Umsatz.',
+    regel_title:'Regelbesteuerung',
+    regel_desc:'Umsatzsteuer wird ausgewiesen und abgeführt, dafür ist der Vorsteuerabzug auf Anschaffungen möglich.',
+    binding_warn:'Ein freiwilliger Verzicht auf die Kleinunternehmerregelung bindet dich für mindestens 5 Kalenderjahre an die Regelbesteuerung.',
+    binding_ack:'Ich verstehe, dass ich mich damit für mindestens 5 Kalenderjahre binde.',
+    step3_title:'Wann hast du gegründet bzw. willst du gründen?',
+    step3_lead:'Seit 2025 wird bei unterjähriger Gründung nicht mehr auf 12 Monate hochgerechnet — es zählt der tatsächliche Umsatz seit diesem Datum gegen die volle Grenze.',
+    gruendung_label:'Gründungsdatum',
+    back:'Zurück', next:'Weiter', finish:'Los geht\'s',
+    demo_seed_note:'Die App startet mit ein paar Beispiel-Buchungen, damit du gleich etwas siehst. Über „Einstellungen" kannst du die Demo jederzeit zurücksetzen.',
+    dash_title:'Übersicht', dash_lead:'Alles auf einen Blick — keine Buchhaltungssprache.',
+    kpi_open_invoices:'Offene Rechnungen', kpi_month_expenses:'Kosten diesen Monat',
+    kpi_reserve:'Aktuelle Steuerrücklage', kpi_threshold:'Umsatz seit Gründung',
+    cashflow_good:'Solide', cashflow_warning:'Im Blick behalten', cashflow_critical:'Handlungsbedarf',
+    recent_invoices:'Letzte Rechnungen', recent_expenses:'Letzte Belege', see_all:'Alle anzeigen',
+    profit_title:'Gewinn seit Gründung', profit_income:'Einnahmen', profit_expenses:'Ausgaben', profit_result:'Gewinn',
+    profit_note:'Diese Zahl geht jährlich in deine Einnahmen-Überschuss-Rechnung (EÜR) ans Finanzamt — nicht die einzelnen Belege. Die Belege selbst reichst du nicht laufend ein, sondern bewahrst sie mindestens 10 Jahre GoBD-konform auf, damit du sie bei einer Prüfung vorlegen kannst.',
+    inv_title:'Rechnungen', inv_lead:'E-Rechnungs-konform im Hintergrund — du siehst nur Kunde, Betrag, Status.',
+    inv_new:'+ Neue Rechnung', inv_customer:'Kunde', inv_date:'Datum', inv_amount:'Betrag', inv_status:'Status', inv_actions:'', inv_number:'Nr.',
+    inv_paid:'bezahlt', inv_open:'offen',
+    inv_empty:'Noch keine Rechnungen. Leg deine erste Rechnung an.',
+    new_invoice:'Neue Rechnung', f_customer:'Kundenname', f_customer_address:'Kundenanschrift', f_description:'Leistungsbeschreibung', f_date:'Rechnungsdatum',
+    f_service_date:'Leistungsdatum', f_service_date_same:'wie Rechnungsdatum',
+    f_net:'Betrag (netto)', f_ust:'USt.-Satz', f_gross:'Bruttobetrag', save:'Speichern', cancel:'Abbrechen',
+    klein_invoice_note:'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet und ausgewiesen.',
+    xrechnung_btn:'E-Rechnung (XML)', preview_btn:'Vorschau / Drucken', datev_hint:'DATEV-Format',
+    mark_paid:'Als bezahlt markieren', delete:'Löschen',
+    positions_title:'Positionen', position_desc:'Bezeichnung', position_qty:'Menge', position_price:'Einzelpreis (netto)',
+    position_sum:'Summe', position_add:'+ Position hinzufügen', position_remove:'Entfernen',
+    invoice_number_note:'Wird automatisch fortlaufend vergeben (Pflicht nach §14 UStG).',
+    profile_missing_warn:'Deine Absender-Angaben (Name, Anschrift, Steuernummer) fehlen noch in den Einstellungen — ohne sie ist die Rechnung formal nicht vollständig.',
+    invoice_preview_title:'Rechnung', invoice_preview_from:'Rechnungssteller', invoice_preview_to:'Rechnungsempfänger',
+    invoice_preview_number:'Rechnungsnummer', invoice_preview_date:'Rechnungsdatum', invoice_preview_service_date:'Leistungsdatum',
+    invoice_preview_net:'Netto gesamt', invoice_preview_vat:'zzgl. USt.', invoice_preview_gross:'Gesamtbetrag',
+    invoice_preview_print:'Drucken / Als PDF speichern', invoice_preview_close:'Schließen',
+    exp_title:'Belege', exp_lead:'Foto rein, Kategorie automatisch vorgeschlagen.',
+    exp_new:'+ Neuer Beleg', exp_category:'Kategorie', exp_date:'Datum', exp_amount:'Betrag', exp_actions:'',
+    exp_empty:'Noch keine Belege erfasst.',
+    new_expense:'Neuer Beleg', f_category:'Kategorie', f_receipt_desc:'Beschreibung', f_amount:'Betrag (brutto)',
+    f_vorsteuer:'davon Vorsteuer (19%)', f_photo:'Beleg-Foto', f_photo_hint:'Wird verkleinert und nur auf diesem Gerät gespeichert (nicht hochgeladen).',
+    photo_remove:'Foto entfernen', photo_too_large:'Foto konnte nicht verarbeitet werden.',
+    auto_suggest:'Automatischer Vorschlag',
+    cat_office:'Büro & Software', cat_travel:'Reisekosten', cat_marketing:'Marketing', cat_equipment:'Ausstattung', cat_other:'Sonstiges',
+    reserve_title:'Steuerrücklage', reserve_lead:'Laufend aktualisiert statt Jahresend-Überraschung.',
+    reserve_profit:'Gewinn seit Gründung (Einnahmen − Kosten)',
+    reserve_rate:'Geschätzter Grenzsteuersatz',
+    reserve_amount:'Empfohlene Rücklage',
+    reserve_explain_solo:'Berechnet als vereinfachte Schätzung auf Basis des Gewinns allein — dein Nebengewerbe hat kein weiteres Einkommen, daher startet die Progression bei null.',
+    reserve_explain_neben:'Dein Nebengewerbe-Gewinn wird zum angegebenen Hauptjob-Einkommen addiert und mit dem sich daraus ergebenden Grenzsteuersatz verrechnet — nicht separat ab null besteuert.',
+    reserve_disclaimer:'Vereinfachte Schätzung auf Basis der Grundtabelle 2026 (Grundfreibetrag 12.348 €). Ersetzt keine Steuerberatung.',
+    thresh_title:'Grenzwert-Wächter', thresh_lead:'Frühzeitige Warnung statt böser Überraschung.',
+    thresh_not_applicable:'Du hast dich für Regelbesteuerung entschieden — die Kleinunternehmergrenze ist für dich nicht relevant. Stattdessen siehst du hier deine laufende Umsatzsteuer-Zahllast.',
+    thresh_ust_owed:'Vereinnahmte Umsatzsteuer', thresh_vorsteuer:'Gezahlte Vorsteuer', thresh_zahllast:'Voraussichtliche USt.-Zahllast',
+    thresh_since:'seit Gründung am',
+    thresh_no_uprating:'Seit der Reform 2025 wird bei unterjähriger Gründung nicht auf 12 Monate hochgerechnet — es zählt ausschließlich der tatsächliche Umsatz seit deinem Gründungsdatum gegen die volle 25.000-€-Grenze.',
+    thresh_year_limit:'Grenze im Gründungsjahr (§19 UStG)',
+    thresh_hard_limit:'Harte Grenze laufendes Jahr',
+    settings_title:'Einstellungen', settings_lead:'Status, Steuermodell und Sprache.',
+    settings_status:'Status', settings_ustmodel:'Umsatzsteuer-Modell', settings_gruendung:'Gründungsdatum',
+    settings_change:'Onboarding erneut durchlaufen', settings_reset:'Demo-Beispieldaten neu laden',
+    settings_clear:'Alle Daten löschen', settings_clear_confirm:'Wirklich alle Rechnungen und Belege unwiderruflich löschen?',
+    settings_storage_note:'Deine Daten liegen nur in diesem Browser auf diesem Gerät (localStorage) — nirgendwo sonst. Browser-Daten löschen entfernt sie ebenfalls.',
+    settings_lang:'Sprache',
+    backup_title:'Backup', backup_lead:'Deine Daten liegen nur auf diesem Gerät — ohne Backup sind sie bei Geräteverlust oder gelöschtem Browser-Speicher unwiderruflich weg.',
+    backup_export_btn:'Backup herunterladen (JSON)', backup_import_btn:'Backup wiederherstellen',
+    backup_import_confirm:'Wiederherstellen ersetzt alle aktuellen Daten in dieser App durch den Inhalt der Backup-Datei. Fortfahren?',
+    backup_import_success:'Backup erfolgreich wiederhergestellt.', backup_import_error:'Diese Datei sieht nicht wie ein gültiges SoloBuch-Backup aus.',
+    profile_title:'Meine Rechnungsdaten', profile_lead:'Erscheint auf jeder Rechnung — Pflichtangaben nach §14 UStG.',
+    f_profile_name:'Name / Firma', f_profile_strasse:'Straße und Hausnummer', f_profile_plzort:'PLZ und Ort',
+    f_profile_steuernummer:'Steuernummer oder USt-IdNr.', profile_save:'Speichern',
+    export_title:'Steuerberater-Paket', export_lead:'Ein Export statt loser E-Mail-Anhänge.',
+    export_btn:'Steuerberater-Paket exportieren (CSV)',
+    export_note:'Demo-Export im DATEV-ähnlichen Format. In der echten App: zusätzlich GoBD-konform archivierte Originalbelege im selben Paket.',
+  },
+  en:{
+    appName:'SoloBuch',
+    tagline:'Bookkeeping for sole traders and small businesses',
+    nav_dashboard:'Overview', nav_invoices:'Invoices', nav_expenses:'Expenses',
+    nav_reserve:'Tax reserve', nav_threshold:'Threshold guard', nav_settings:'Settings', nav_more:'More',
+    onboard_welcome_title:'Welcome to SoloBuch',
+    onboard_welcome_lead:'Two quick questions — then the app only shows you what actually applies to you.',
+    step1_title:'How are you set up?',
+    step1_lead:'This determines how your tax reserve is calculated.',
+    einzel_title:'Sole trader (main business)',
+    einzel_desc:'Self-employment is your only or main source of income.',
+    neben_title:'Side business',
+    neben_desc:'Part-time alongside a main job. Your side income is added on top of your main job income for tax purposes.',
+    hauptjob_label:'Approximate gross yearly income from your main job (optional, improves the tax reserve estimate)',
+    step2_title:'How do you handle VAT?',
+    step2_lead:'This choice applies regardless of sole trader or side business status.',
+    klein_title:'Small business exemption (§19 UStG)',
+    klein_desc:'No VAT on invoices, but no input VAT deduction either. Available up to €25,000 prior-year revenue / €100,000 current-year revenue.',
+    regel_title:'Standard VAT taxation',
+    regel_desc:'VAT is charged and remitted, but you can reclaim input VAT on purchases.',
+    binding_warn:'Voluntarily opting out of the small business exemption binds you to standard VAT taxation for at least 5 calendar years.',
+    binding_ack:'I understand this binds me for at least 5 calendar years.',
+    step3_title:'When did (or will) you start?',
+    step3_lead:'Since 2025, revenue for a mid-year start is no longer annualised — actual revenue since this date counts against the full threshold.',
+    gruendung_label:'Start date',
+    back:'Back', next:'Next', finish:'Get started',
+    demo_seed_note:'The app starts with a few example entries so there\'s something to see. You can reset the demo any time from Settings.',
+    dash_title:'Overview', dash_lead:'Everything at a glance — no accounting jargon.',
+    kpi_open_invoices:'Open invoices', kpi_month_expenses:'Expenses this month',
+    kpi_reserve:'Current tax reserve', kpi_threshold:'Revenue since start',
+    cashflow_good:'Solid', cashflow_warning:'Keep an eye on it', cashflow_critical:'Needs attention',
+    recent_invoices:'Recent invoices', recent_expenses:'Recent expenses', see_all:'See all',
+    profit_title:'Profit since start', profit_income:'Income', profit_expenses:'Expenses', profit_result:'Profit',
+    profit_note:'This figure is what goes into your annual profit statement (EÜR) for the tax office — not the individual receipts. You don\'t submit receipts on an ongoing basis; you keep them GoBD-compliant for at least 10 years and produce them only if you\'re audited.',
+    inv_title:'Invoices', inv_lead:'E-invoice compliant behind the scenes — you just see customer, amount, status.',
+    inv_new:'+ New invoice', inv_customer:'Customer', inv_date:'Date', inv_amount:'Amount', inv_status:'Status', inv_actions:'', inv_number:'No.',
+    inv_paid:'paid', inv_open:'open',
+    inv_empty:'No invoices yet. Create your first one.',
+    new_invoice:'New invoice', f_customer:'Customer name', f_customer_address:'Customer address', f_description:'Description of service', f_date:'Invoice date',
+    f_service_date:'Service date', f_service_date_same:'same as invoice date',
+    f_net:'Amount (net)', f_ust:'VAT rate', f_gross:'Gross amount', save:'Save', cancel:'Cancel',
+    klein_invoice_note:'Under §19 UStG, no VAT is charged or shown.',
+    xrechnung_btn:'E-invoice (XML)', preview_btn:'Preview / Print', datev_hint:'DATEV format',
+    mark_paid:'Mark as paid', delete:'Delete',
+    positions_title:'Line items', position_desc:'Description', position_qty:'Qty', position_price:'Unit price (net)',
+    position_sum:'Subtotal', position_add:'+ Add line item', position_remove:'Remove',
+    invoice_number_note:'Assigned automatically in sequence (required under §14 UStG).',
+    profile_missing_warn:'Your sender details (name, address, tax number) are still missing in Settings — without them the invoice isn\'t formally complete.',
+    invoice_preview_title:'Invoice', invoice_preview_from:'From', invoice_preview_to:'Bill to',
+    invoice_preview_number:'Invoice number', invoice_preview_date:'Invoice date', invoice_preview_service_date:'Service date',
+    invoice_preview_net:'Net total', invoice_preview_vat:'plus VAT', invoice_preview_gross:'Total amount',
+    invoice_preview_print:'Print / Save as PDF', invoice_preview_close:'Close',
+    exp_title:'Expenses', exp_lead:'Snap a photo, category suggested automatically.',
+    exp_new:'+ New expense', exp_category:'Category', exp_date:'Date', exp_amount:'Amount', exp_actions:'',
+    exp_empty:'No expenses recorded yet.',
+    new_expense:'New expense', f_category:'Category', f_receipt_desc:'Description', f_amount:'Amount (gross)',
+    f_vorsteuer:'of which input VAT (19%)', f_photo:'Receipt photo', f_photo_hint:'Shrunk and stored only on this device (never uploaded).',
+    photo_remove:'Remove photo', photo_too_large:'Couldn\'t process that photo.',
+    auto_suggest:'Auto-suggested',
+    cat_office:'Office & software', cat_travel:'Travel', cat_marketing:'Marketing', cat_equipment:'Equipment', cat_other:'Other',
+    reserve_title:'Tax reserve', reserve_lead:'Updated continuously instead of a year-end surprise.',
+    reserve_profit:'Profit since start (income − expenses)',
+    reserve_rate:'Estimated marginal tax rate',
+    reserve_amount:'Recommended reserve',
+    reserve_explain_solo:'A simplified estimate based on profit alone — your business has no other income, so progression starts from zero.',
+    reserve_explain_neben:'Your side-business profit is added to your stated main-job income, and taxed at the resulting marginal rate — not separately from zero.',
+    reserve_disclaimer:'Simplified estimate based on the 2026 basic tax table (basic allowance €12,348). Not a substitute for tax advice.',
+    thresh_title:'Threshold guard', thresh_lead:'An early warning instead of a nasty surprise.',
+    thresh_not_applicable:'You chose standard VAT taxation — the small business threshold doesn\'t apply to you. Instead, here\'s your running VAT liability.',
+    thresh_ust_owed:'VAT collected', thresh_vorsteuer:'Input VAT paid', thresh_zahllast:'Estimated VAT payable',
+    thresh_since:'since starting on',
+    thresh_no_uprating:'Since the 2025 reform, mid-year starts are no longer annualised — only actual revenue since your start date counts against the full €25,000 threshold.',
+    thresh_year_limit:'Threshold in founding year (§19 UStG)',
+    thresh_hard_limit:'Hard limit, current year',
+    settings_title:'Settings', settings_lead:'Status, VAT model and language.',
+    settings_status:'Status', settings_ustmodel:'VAT model', settings_gruendung:'Start date',
+    settings_change:'Redo onboarding', settings_reset:'Reload demo sample data',
+    settings_clear:'Delete all data', settings_clear_confirm:'Really delete all invoices and expenses permanently?',
+    settings_storage_note:'Your data lives only in this browser on this device (localStorage) — nowhere else. Clearing browser data removes it too.',
+    backup_title:'Backup', backup_lead:'Your data lives only on this device — without a backup it\'s gone for good if you lose the device or clear browser storage.',
+    backup_export_btn:'Download backup (JSON)', backup_import_btn:'Restore from backup',
+    backup_import_confirm:'Restoring replaces all current data in this app with the contents of the backup file. Continue?',
+    backup_import_success:'Backup restored successfully.', backup_import_error:'This file doesn\'t look like a valid SoloBuch backup.',
+    settings_lang:'Language',
+    profile_title:'My invoice details', profile_lead:'Appears on every invoice — required under §14 UStG.',
+    f_profile_name:'Name / business', f_profile_strasse:'Street and number', f_profile_plzort:'Postcode and city',
+    f_profile_steuernummer:'Tax number or VAT ID', profile_save:'Save',
+    export_title:'Tax-advisor package', export_lead:'One export instead of loose email attachments.',
+    export_btn:'Export tax-advisor package (CSV)',
+    export_note:'Demo export in a DATEV-like format. In the real app: original receipts, archived GoBD-compliant, ship in the same package.',
+  }
+};
+function t(key){ return I18N[state.lang][key] || key; }
+/* ---------------------------- Seed demo data ---------------------------- */
+function nextInvoiceNumber(){
+  state.invoiceCounter += 1;
+  const year = new Date().getFullYear();
+  return `${year}-${String(state.invoiceCounter).padStart(4,'0')}`;
+}
+function seedDemoData(){
+  const base = state.gruendung;
+  state.profile = {
+    name: state.status==='neben' ? 'Alex Beispiel' : 'Alex Beispiel Design',
+    strasse: 'Musterstraße 12',
+    plzOrt: '10115 Berlin',
+    steuernummer: '30/123/45678'
+  };
+  state.invoiceCounter = 0;
+  state.invoices = [
+    {id:uid(), rechnungsnummer:nextInvoiceNumber(), kunde:'Atelier Nord GmbH', kundeAnschrift:'Hauptstraße 4\n50667 Köln',
+     datum:base, leistungsdatum:base, positionen:[{beschreibung:'Logo & Corporate Design', menge:1, preis:1200}], ustSatz:0, bezahlt:true},
+    {id:uid(), rechnungsnummer:nextInvoiceNumber(), kunde:'Café Lindenblatt', kundeAnschrift:'Lindenallee 9\n80331 München',
+     datum:base, leistungsdatum:base, positionen:[{beschreibung:'Speisekarten-Redesign', menge:1, preis:340}], ustSatz:0, bezahlt:true},
+    {id:uid(), rechnungsnummer:nextInvoiceNumber(), kunde:'Praxis Dr. Weber', kundeAnschrift:'Bahnhofstraße 21\n70173 Stuttgart',
+     datum:todayISO(), leistungsdatum:todayISO(), positionen:[{beschreibung:'Website-Pflege Juli', menge:1, preis:480}], ustSatz:0, bezahlt:false},
+  ];
+  state.expenses = [
+    {id:uid(), kategorie:'office', beschreibung:'Adobe Creative Cloud', datum:todayISO(), betrag:59.99, vorsteuer:0},
+    {id:uid(), kategorie:'equipment', beschreibung:'Grafiktablett', datum:base, betrag:249, vorsteuer:0},
+    {id:uid(), kategorie:'travel', beschreibung:'Bahnfahrt Kundentermin', datum:todayISO(), betrag:64.20, vorsteuer:0},
+  ];
+}
+/* ---------------------------- Tax reserve calc ---------------------------- */
+// Simplified 2026 approximation of the German progressive income tax (Grundtabelle).
+// NOT the exact §32a formula — piecewise-linear approximation for demo purposes.
+function estimateMarginalRate(income){
+  const brackets = [
+    {upTo:12348, rate:0.00},
+    {upTo:17799, rate:0.16},
+    {upTo:29000, rate:0.24},
+    {upTo:45000, rate:0.31},
+    {upTo:68500, rate:0.37},
+    {upTo:280000, rate:0.42},
+    {upTo:Infinity, rate:0.45},
+  ];
+  for(const b of brackets){ if(income <= b.upTo) return b.rate; }
+  return 0.45;
+}
+function computeReserve(){
+  const profit = totalInvoiceNetto(true) - totalExpenses();
+  const base = state.status === 'neben' ? (Number(state.hauptjobIncome)||0) : 0;
+  const rate = estimateMarginalRate(base + Math.max(profit,0));
+  const amount = Math.max(profit,0) * rate;
+  return {profit, rate, amount};
+}
+/* ---------------------------- Derived totals ---------------------------- */
+function nettoOf(inv){
+  if(Array.isArray(inv.positionen)){
+    return inv.positionen.reduce((s,p)=> s + (Number(p.menge||0) * Number(p.preis||0)), 0);
+  }
+  return Number(inv.netto||0); // backward compat
+}
+function totalInvoiceNetto(onlyPaidOrAll){
+  return state.invoices.reduce((s,i)=> s + nettoOf(i), 0);
+}
+function totalOpenInvoices(){
+  return state.invoices.filter(i=>!i.bezahlt).reduce((s,i)=> s + grossOf(i), 0);
+}
+function totalExpenses(){
+  return state.expenses.reduce((s,e)=> s + Number(e.betrag||0), 0);
+}
+function totalExpensesThisMonth(){
+  const ym = todayISO().slice(0,7);
+  return state.expenses.filter(e=>e.datum && e.datum.slice(0,7)===ym).reduce((s,e)=> s + Number(e.betrag||0),0);
+}
+function grossOf(inv){
+  const netto = nettoOf(inv);
+  if(state.ustModel==='klein') return netto;
+  return netto * (1 + (Number(inv.ustSatz||0)/100));
+}
+function totalUstCollected(){
+  if(state.ustModel!=='regel') return 0;
+  return state.invoices.reduce((s,i)=> s + nettoOf(i)*(Number(i.ustSatz||0)/100), 0);
+}
+function profileComplete(){
+  return !!(state.profile && state.profile.name && state.profile.strasse && state.profile.plzOrt && state.profile.steuernummer);
+}
+function totalVorsteuer(){
+  return state.expenses.reduce((s,e)=> s + Number(e.vorsteuer||0), 0);
+}
+/* ---------------------------- Category helpers ---------------------------- */
+const CATEGORY_KEYWORDS = [
+  {cat:'office', words:['software','adobe','office','hosting','domain','lizenz','abo','cloud']},
+  {cat:'travel', words:['bahn','flug','taxi','hotel','tank','reise','uber']},
+  {cat:'marketing', words:['werbung','ads','marketing','flyer','druck','social']},
+  {cat:'equipment', words:['tablet','laptop','kamera','werkzeug','möbel','stuhl','ausstattung','tablett']},
+];
+function suggestCategory(text){
+  const low = (text||'').toLowerCase();
+  for(const g of CATEGORY_KEYWORDS){ if(g.words.some(w=>low.includes(w))) return g.cat; }
+  return 'other';
+}
+function catLabel(cat){
+  return {office:t('cat_office'), travel:t('cat_travel'), marketing:t('cat_marketing'),
+          equipment:t('cat_equipment'), other:t('cat_other')}[cat] || cat;
+}
+/* ---------------------------- Rendering: onboarding ---------------------------- */
+function renderOnboarding(){
+  saveState();
+  const el = document.getElementById('onboarding');
+  el.style.display = 'flex';
+  document.getElementById('app-shell').classList.remove('active');
+  let stepsHtml = '';
+  for(let i=1;i<=3;i++) stepsHtml += `<div class="${state.step>=i?'done':''}"></div>`;
+  let body = '';
+  if(state.step===1){
+    body = `
+      <h2>${t('step1_title')}</h2>
+      <p class="lead">${t('step1_lead')}</p>
+      <div class="choice-grid">
+        <div class="choice-card ${state.status==='einzel'?'selected':''}" onclick="selectStatus('einzel')">
+          <div class="title">${t('einzel_title')}</div>
+          <div class="desc">${t('einzel_desc')}</div>
+        </div>
+        <div class="choice-card ${state.status==='neben'?'selected':''}" onclick="selectStatus('neben')">
+          <div class="title">${t('neben_title')}</div>
+          <div class="desc">${t('neben_desc')}</div>
+        </div>
+      </div>
+      ${state.status==='neben' ? `
+        <div class="field">
+          <label>${t('hauptjob_label')}</label>
+          <input type="number" min="0" step="100" value="${state.hauptjobIncome||''}" oninput="state.hauptjobIncome=this.value">
+        </div>` : ''}
+      <div class="btn-row">
+        <button class="btn" ${state.status?'':'disabled style="opacity:.4;cursor:not-allowed;"'} onclick="goStep(2)">${t('next')}</button>
+      </div>
+    `;
+  } else if(state.step===2){
+    body = `
+      <h2>${t('step2_title')}</h2>
+      <p class="lead">${t('step2_lead')}</p>
+      <div class="choice-grid">
+        <div class="choice-card ${state.ustModel==='klein'?'selected':''}" onclick="selectUst('klein')">
+          <div class="title">${t('klein_title')}</div>
+          <div class="desc">${t('klein_desc')}</div>
+        </div>
+        <div class="choice-card ${state.ustModel==='regel'?'selected':''}" onclick="selectUst('regel')">
+          <div class="title">${t('regel_title')}</div>
+          <div class="desc">${t('regel_desc')}</div>
+        </div>
+      </div>
+      ${state.ustModel==='regel' ? `
+        <div class="note warn" style="margin-top:16px;">${t('binding_warn')}</div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="bindack" ${state.bindingAck?'checked':''} onchange="state.bindingAck=this.checked; renderOnboarding();">
+          <label for="bindack">${t('binding_ack')}</label>
+        </div>` : ''}
+      <div class="btn-row">
+        <button class="btn secondary" onclick="goStep(1)">${t('back')}</button>
+        <button class="btn" ${canProceedStep2()?'':'disabled style="opacity:.4;cursor:not-allowed;"'} onclick="goStep(3)">${t('next')}</button>
+      </div>
+    `;
+  } else if(state.step===3){
+    body = `
+      <h2>${t('step3_title')}</h2>
+      <p class="lead">${t('step3_lead')}</p>
+      <div class="field">
+        <label>${t('gruendung_label')}</label>
+        <input type="date" value="${state.gruendung}" onchange="state.gruendung=this.value">
+      </div>
+      <div class="note plain" style="margin-top:16px;">${t('demo_seed_note')}</div>
+      <div class="btn-row">
+        <button class="btn secondary" onclick="goStep(2)">${t('back')}</button>
+        <button class="btn" onclick="finishOnboarding()">${t('finish')}</button>
+      </div>
+    `;
+  }
+  el.innerHTML = `
+    <div class="wizard">
+      <div style="text-align:center; margin-bottom:22px;">
+        <div style="font-weight:800; font-size:20px; color:var(--brand);">${t('onboard_welcome_title')}</div>
+        <div style="color:var(--ink-2); font-size:13.5px; margin-top:4px;">${t('onboard_welcome_lead')}</div>
+      </div>
+      <div class="wizard-steps">${stepsHtml}</div>
+      <div class="wizard-card">${body}</div>
+    </div>
+  `;
+}
+function canProceedStep2(){
+  if(!state.ustModel) return false;
+  if(state.ustModel==='regel' && !state.bindingAck) return false;
+  return true;
+}
+function selectStatus(s){ state.status=s; renderOnboarding(); }
+function selectUst(u){ state.ustModel=u; if(u!=='regel') state.bindingAck=false; renderOnboarding(); }
+function goStep(n){ state.step=n; renderOnboarding(); }
+function finishOnboarding(){
+  state.onboarded = true;
+  seedDemoData();
+  document.getElementById('onboarding').style.display='none';
+  document.getElementById('app-shell').classList.add('active');
+  state.screen='dashboard';
+  renderApp();
+}
+/* ---------------------------- Rendering: app shell ---------------------------- */
+function renderApp(){
+  renderSidebar();
+  renderScreen();
+}
+function renderSidebar(){
+  const items = [
+    ['dashboard','nav_dashboard'], ['invoices','nav_invoices'], ['expenses','nav_expenses'],
+    ['reserve','nav_reserve'], ['threshold','nav_threshold'], ['settings','nav_settings']
+  ];
+  const navHtml = items.map(([id,key])=>`
+    <div class="nav-item ${state.screen===id?'active':''}" onclick="goScreen('${id}')">
+      <span class="dot"></span><span>${t(key)}</span>
+    </div>`).join('');
+  document.getElementById('sidebar').innerHTML = `
+    <div class="brand"><div class="logo">S</div><div class="name">${t('appName')}</div></div>
+    ${navHtml}
+    <div class="sidebar-footer">
+      <div class="badge-mode">
+        <strong>${state.status==='neben'?t('neben_title'):t('einzel_title')}</strong>
+        ${state.ustModel==='klein'?t('klein_title'):t('regel_title')}
+      </div>
+    </div>
+  `;
+  renderBottomNav();
+}
+function renderBottomNav(){
+  const moreScreens = ['reserve','threshold','settings'];
+  const isMoreActive = moreScreens.includes(state.screen);
+  const tabs = [
+    ['dashboard','nav_dashboard', `goScreen('dashboard')`],
+    ['invoices','nav_invoices', `goScreen('invoices')`],
+    ['expenses','nav_expenses', `goScreen('expenses')`],
+    ['more','nav_more', `openMoreMenu()`],
+  ];
+  document.getElementById('bottom-nav').innerHTML = tabs.map(([id,key,onclick])=>`
+    <div class="bottom-nav-item ${id==='more' ? (isMoreActive?'active':'') : (state.screen===id?'active':'')}" onclick="${onclick}">
+      <span>${t(key)}</span>
+    </div>`).join('');
+}
+function openMoreMenu(){
+  const body = `
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${t('nav_more')}</h3>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:16px;">
+      <button class="btn secondary" onclick="closeModal(); goScreen('reserve')">${t('nav_reserve')}</button>
+      <button class="btn secondary" onclick="closeModal(); goScreen('threshold')">${t('nav_threshold')}</button>
+      <button class="btn secondary" onclick="closeModal(); goScreen('settings')">${t('nav_settings')}</button>
+    </div>
+  `;
+  openModal(body);
+}
+function goScreen(s){ state.screen=s; renderScreen(); renderBottomNav(); }
+function renderScreen(){
+  saveState();
+  const main = document.getElementById('main');
+  const langToggle = `
+    <div class="lang-toggle">
+      <button class="${state.lang==='de'?'active':''}" onclick="setLang('de')">DE</button>
+      <button class="${state.lang==='en'?'active':''}" onclick="setLang('en')">EN</button>
+    </div>`;
+  let title='', lead='', body='';
+  if(state.screen==='dashboard'){ [title,lead,body] = ['dash_title','dash_lead', renderDashboard()]; }
+  else if(state.screen==='invoices'){ [title,lead,body] = ['inv_title','inv_lead', renderInvoices()]; }
+  else if(state.screen==='expenses'){ [title,lead,body] = ['exp_title','exp_lead', renderExpenses()]; }
+  else if(state.screen==='reserve'){ [title,lead,body] = ['reserve_title','reserve_lead', renderReserve()]; }
+  else if(state.screen==='threshold'){ [title,lead,body] = ['thresh_title','thresh_lead', renderThreshold()]; }
+  else if(state.screen==='settings'){ [title,lead,body] = ['settings_title','settings_lead', renderSettings()]; }
+  main.innerHTML = `
+    <div class="topbar">
+      <div><h1>${t(title)}</h1><p>${t(lead)}</p></div>
+      ${langToggle}
+    </div>
+    ${body}
+  `;
+}
+function setLang(l){ state.lang=l; renderSidebar(); renderScreen(); }
+/* ---------------------------- Dashboard ---------------------------- */
+function renderDashboard(){
+  const open = totalOpenInvoices();
+  const monthExp = totalExpensesThisMonth();
+  const {amount:reserve} = computeReserve();
+  const revenue = totalInvoiceNetto();
+  const limit = 25000;
+  const pct = Math.min(100, (revenue/limit)*100);
+  const pctClass = pct>=100?'critical':(pct>=80?'warning':'');
+  const profit = totalInvoiceNetto() - totalExpenses() - reserve;
+  let cfClass='status-good', cfLabel=t('cashflow_good');
+  if(profit<0){ cfClass='status-critical'; cfLabel=t('cashflow_critical'); }
+  else if(profit < totalInvoiceNetto()*0.1){ cfClass='status-warning'; cfLabel=t('cashflow_warning'); }
+  const recentInv = [...state.invoices].slice(-4).reverse().map(i=>`
+    <tr><td>${i.kunde}</td><td class="num">${fmtMoney(grossOf(i))}</td>
+    <td>${i.bezahlt?`<span class="status-pill status-good"><span class="swatch"></span>${t('inv_paid')}</span>`
+                   :`<span class="status-pill status-warning"><span class="swatch"></span>${t('inv_open')}</span>`}</td></tr>
+  `).join('') || `<tr class="empty-row"><td colspan="3">${t('inv_empty')}</td></tr>`;
+  const recentExp = [...state.expenses].slice(-4).reverse().map(e=>`
+    <tr><td>${e.beschreibung}<div class="muted" style="font-size:11.5px;">${catLabel(e.kategorie)}</div></td>
+    <td class="num">${fmtMoney(e.betrag)}</td></tr>
+  `).join('') || `<tr class="empty-row"><td colspan="2">${t('exp_empty')}</td></tr>`;
+  const einnahmen = totalInvoiceNetto();
+  const ausgaben = totalExpenses();
+  const gewinn = einnahmen - ausgaben;
+  return `
+    <section class="block">
+      <div class="profit-eq">
+        <div class="card kpi profit-item"><div class="label">${t('profit_income')}</div><div class="value">${fmtMoney(einnahmen)}</div></div>
+        <div class="profit-op">&minus;</div>
+        <div class="card kpi profit-item"><div class="label">${t('profit_expenses')}</div><div class="value">${fmtMoney(ausgaben)}</div></div>
+        <div class="profit-op">=</div>
+        <div class="card kpi profit-item result"><div class="label">${t('profit_result')}</div><div class="value">${fmtMoney(gewinn)}</div></div>
+      </div>
+      <p class="profit-footnote">${t('profit_note')}</p>
+    </section>
+    <div class="kpi-row">
+      <div class="card kpi"><div class="label">${t('kpi_open_invoices')}</div><div class="value">${fmtMoney(open)}</div>
+        <div class="sub">${state.invoices.filter(i=>!i.bezahlt).length} ${state.lang==='de'?'offen':'open'}</div></div>
+      <div class="card kpi"><div class="label">${t('kpi_month_expenses')}</div><div class="value">${fmtMoney(monthExp)}</div></div>
+      <div class="card kpi"><div class="label">${t('kpi_reserve')}</div><div class="value">${fmtMoney(reserve)}</div></div>
+      <div class="card kpi">
+        <div class="label">${state.lang==='de'?'Cashflow':'Cashflow'}</div>
+        <div style="margin-top:8px;"><span class="status-pill ${cfClass}"><span class="swatch"></span>${cfLabel}</span></div>
+      </div>
+    </div>
+    <section class="block card">
+      <div class="section-head"><h2 style="margin:0;">${t('kpi_threshold')}</h2>
+        <span class="tag">${fmtMoney(revenue)} / ${fmtMoney(limit)}</span></div>
+      <div class="progress-track"><div class="progress-fill ${pctClass}" style="width:${pct}%;"></div></div>
+      <div class="progress-caption"><span>${fmtDate(state.gruendung)}</span><span>${pct.toFixed(0)}%</span></div>
+    </section>
+    <div class="two-col">
+      <section class="block card">
+        <div class="section-head"><h2 style="margin:0;">${t('recent_invoices')}</h2>
+          <button class="btn secondary small" onclick="goScreen('invoices')">${t('see_all')}</button></div>
+        <div class="table-scroll"><table><tbody>${recentInv}</tbody></table></div>
+      </section>
+      <section class="block card">
+        <div class="section-head"><h2 style="margin:0;">${t('recent_expenses')}</h2>
+          <button class="btn secondary small" onclick="goScreen('expenses')">${t('see_all')}</button></div>
+        <div class="table-scroll"><table><tbody>${recentExp}</tbody></table></div>
+      </section>
+    </div>
+  `;
+}
+/* ---------------------------- Invoices ---------------------------- */
+function renderInvoices(){
+  const rows = [...state.invoices].reverse().map(i=>`
+    <tr>
+      <td class="muted" style="font-variant-numeric:tabular-nums;">${i.rechnungsnummer||'—'}</td>
+      <td>${i.kunde}<div class="muted" style="font-size:11.5px;">${(i.positionen&&i.positionen[0]&&i.positionen[0].beschreibung)||''}</div></td>
+      <td>${fmtDate(i.datum)}</td>
+      <td class="num">${fmtMoney(grossOf(i))}</td>
+      <td>${i.bezahlt?`<span class="status-pill status-good"><span class="swatch"></span>${t('inv_paid')}</span>`
+                     :`<span class="status-pill status-warning"><span class="swatch"></span>${t('inv_open')}</span>`}</td>
+      <td>
+        <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px;">
+          ${!i.bezahlt?`<button class="btn secondary small" onclick="markPaid('${i.id}')">${t('mark_paid')}</button>`:''}
+          <button class="btn secondary small" onclick="openInvoicePreview('${i.id}')">${t('preview_btn')}</button>
+          <button class="btn secondary small" onclick="showXRechnung('${i.id}')">${t('xrechnung_btn')}</button>
+          <button class="btn danger small" onclick="deleteInvoice('${i.id}')">${t('delete')}</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || `<tr class="empty-row"><td colspan="6">${t('inv_empty')}</td></tr>`;
+  return `
+    <section class="block card">
+      <div class="section-head"><h2 style="margin:0;">${t('inv_title')}</h2>
+        <button class="btn small" onclick="openInvoiceModal()">${t('inv_new')}</button></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>${t('inv_number')}</th><th>${t('inv_customer')}</th><th>${t('inv_date')}</th><th class="num">${t('inv_amount')}</th><th>${t('inv_status')}</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </section>
+  `;
+}
+function markPaid(id){ const inv=state.invoices.find(i=>i.id===id); if(inv) inv.bezahlt=true; renderScreen(); }
+function deleteInvoice(id){ state.invoices = state.invoices.filter(i=>i.id!==id); renderScreen(); }
+/* ---- Invoice modal with dynamic line items ---- */
+let modalPositions = [];
+function openInvoiceModal(){
+  modalPositions = [{beschreibung:'', menge:1, preis:0}];
+  renderInvoiceModal();
+}
+function renderInvoiceModal(){
+  const isKlein = state.ustModel==='klein';
+  const body = `
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${t('new_invoice')}</h3><p class="lead"></p>
+    ${!profileComplete() ? `<div class="note warn" style="margin-bottom:14px;">${t('profile_missing_warn')}</div>` : ''}
+    <div class="field"><label>${t('f_customer')}</label><input id="f-kunde" type="text"></div>
+    <div class="field"><label>${t('f_customer_address')}</label><textarea id="f-kunde-adresse" rows="2" style="width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); font-size:13.5px; font-family:inherit;"></textarea></div>
+    <div class="grid-2">
+      <div class="field"><label>${t('f_date')}</label><input id="f-datum" type="date" value="${todayISO()}" onchange="syncServiceDate()"></div>
+      <div class="field"><label>${t('f_service_date')}</label><input id="f-leistungsdatum" type="date" value="${todayISO()}"></div>
+    </div>
+    <div class="field" id="position-list">
+      <label>${t('positions_title')}</label>
+      ${renderPositionRows()}
+      <button type="button" class="btn secondary small" style="margin-top:6px;" onclick="addPositionRow()">${t('position_add')}</button>
+    </div>
+    ${isKlein
+      ? `<div class="note plain" style="margin-top:14px;">${t('klein_invoice_note')}</div>`
+      : `<div class="field"><label>${t('f_ust')}</label>
+           <select id="f-ust"><option value="19">19%</option><option value="7">7%</option><option value="0">0%</option></select></div>`
+    }
+    <div class="note plain" style="margin-top:14px; font-size:11.5px;">${t('invoice_number_note')} (${nextInvoiceNumberPreview()})</div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="closeModal()">${t('cancel')}</button>
+      <button class="btn" onclick="saveInvoice()">${t('save')}</button>
+    </div>
+  `;
+  openModal(body);
+}
+function nextInvoiceNumberPreview(){
+  const year = new Date().getFullYear();
+  return `${year}-${String(state.invoiceCounter+1).padStart(4,'0')}`;
+}
+function renderPositionRows(){
+  return modalPositions.map((p,idx)=>`
+    <div class="position-row" style="margin-top:${idx>0?'8px':'6px'};">
+      <div><label style="font-size:11px;">${t('position_desc')}</label>
+        <input type="text" value="${p.beschreibung.replace(/"/g,'&quot;')}" oninput="updatePosition(${idx},'beschreibung',this.value)"></div>
+      <div><label style="font-size:11px;">${t('position_qty')}</label>
+        <input type="number" min="0" step="1" value="${p.menge}" oninput="updatePosition(${idx},'menge',this.value)"></div>
+      <div><label style="font-size:11px;">${t('position_price')}</label>
+        <input type="number" min="0" step="0.01" value="${p.preis}" oninput="updatePosition(${idx},'preis',this.value)"></div>
+      <button type="button" class="btn danger small" onclick="removePositionRow(${idx})" ${modalPositions.length<=1?'disabled style="opacity:.35;"':''}>✕</button>
+    </div>
+  `).join('');
+}
+function updatePosition(idx, field, value){
+  modalPositions[idx][field] = (field==='beschreibung') ? value : Number(value)||0;
+}
+function addPositionRow(){
+  modalPositions.push({beschreibung:'', menge:1, preis:0});
+  document.getElementById('position-list').innerHTML =
+    `<label>${t('positions_title')}</label>${renderPositionRows()}<button type="button" class="btn secondary small" style="margin-top:6px;" onclick="addPositionRow()">${t('position_add')}</button>`;
+}
+function removePositionRow(idx){
+  if(modalPositions.length<=1) return;
+  modalPositions.splice(idx,1);
+  document.getElementById('position-list').innerHTML =
+    `<label>${t('positions_title')}</label>${renderPositionRows()}<button type="button" class="btn secondary small" style="margin-top:6px;" onclick="addPositionRow()">${t('position_add')}</button>`;
+}
+function syncServiceDate(){
+  const d = document.getElementById('f-datum').value;
+  document.getElementById('f-leistungsdatum').value = d;
+}
+function saveInvoice(){
+  const kunde = document.getElementById('f-kunde').value.trim();
+  const kundeAnschrift = document.getElementById('f-kunde-adresse').value.trim();
+  const datum = document.getElementById('f-datum').value || todayISO();
+  const leistungsdatum = document.getElementById('f-leistungsdatum').value || datum;
+  const ustEl = document.getElementById('f-ust');
+  const ustSatz = ustEl ? Number(ustEl.value) : 0;
+  const positionen = modalPositions.filter(p=>p.beschreibung.trim() && p.preis>0);
+  if(!kunde || positionen.length===0){ return; }
+  state.invoices.push({
+    id:uid(), rechnungsnummer:nextInvoiceNumber(), kunde, kundeAnschrift, datum, leistungsdatum,
+    positionen, ustSatz, bezahlt:false
+  });
+  closeModal();
+  renderScreen();
+}
+/* ---- Human-readable invoice preview / print ---- */
+function openInvoicePreview(id){
+  const inv = state.invoices.find(i=>i.id===id);
+  if(!inv) return;
+  const netto = nettoOf(inv);
+  const gross = grossOf(inv);
+  const vat = gross - netto;
+  const rows = inv.positionen.map(p=>`
+    <tr>
+      <td>${escapeXml(p.beschreibung)}</td>
+      <td class="num">${p.menge}</td>
+      <td class="num">${fmtMoney(p.preis)}</td>
+      <td class="num">${fmtMoney(p.menge*p.preis)}</td>
+    </tr>`).join('');
+  const profile = state.profile;
+  const body = `
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="invoice-print-area">
+      <h3>${t('invoice_preview_title')} ${inv.rechnungsnummer}</h3>
+      <div class="grid-2" style="margin-top:10px;">
+        <div>
+          <div class="muted" style="font-size:11px; text-transform:uppercase;">${t('invoice_preview_from')}</div>
+          <div>${escapeXml(profile.name)||'—'}</div>
+          <div>${escapeXml(profile.strasse)||''}</div>
+          <div>${escapeXml(profile.plzOrt)||''}</div>
+          <div class="muted" style="font-size:12px; margin-top:4px;">${escapeXml(profile.steuernummer)||''}</div>
+        </div>
+        <div>
+          <div class="muted" style="font-size:11px; text-transform:uppercase;">${t('invoice_preview_to')}</div>
+          <div>${escapeXml(inv.kunde)}</div>
+          <div style="white-space:pre-line;">${escapeXml(inv.kundeAnschrift||'')}</div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:14px; font-size:13px;">
+        <div><span class="muted">${t('invoice_preview_number')}:</span> ${inv.rechnungsnummer}</div>
+        <div><span class="muted">${t('invoice_preview_date')}:</span> ${fmtDate(inv.datum)}</div>
+        <div><span class="muted">${t('invoice_preview_service_date')}:</span> ${fmtDate(inv.leistungsdatum||inv.datum)}</div>
+      </div>
+      <div class="table-scroll"><table style="margin-top:16px;">
+        <thead><tr><th>${t('position_desc')}</th><th class="num">${t('position_qty')}</th><th class="num">${t('position_price')}</th><th class="num">${t('position_sum')}</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div style="margin-top:14px; text-align:right; font-size:13.5px;">
+        <div>${t('invoice_preview_net')}: ${fmtMoney(netto)}</div>
+        ${state.ustModel==='regel'
+          ? `<div>${t('invoice_preview_vat')} (${inv.ustSatz}%): ${fmtMoney(vat)}</div>`
+          : `<div class="muted" style="font-size:12px;">${t('klein_invoice_note')}</div>`}
+        <div style="font-weight:700; font-size:16px; margin-top:4px;">${t('invoice_preview_gross')}: ${fmtMoney(gross)}</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="closeModal()">${t('invoice_preview_close')}</button>
+      <button class="btn" onclick="printInvoice()">${t('invoice_preview_print')}</button>
+    </div>
+  `;
+  openModal(body);
+}
+function printInvoice(){
+  const content = document.getElementById('invoice-print-area').innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>${t('invoice_preview_title')}</title>
+    <style>body{font-family:system-ui,sans-serif; padding:40px; color:#0b0b0b;}
+    table{width:100%; border-collapse:collapse; margin-top:10px;} th,td{padding:6px 8px; border-bottom:1px solid #e1e0d9; text-align:left;}
+    .num{text-align:right;} .muted{color:#898781;}</style></head><body>${content}</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+function showXRechnung(id){
+  const inv = state.invoices.find(i=>i.id===id);
+  if(!inv) return;
+  const netto = nettoOf(inv);
+  const gross = grossOf(inv).toFixed(2);
+  const profile = state.profile;
+  const lines = inv.positionen.map(p=>`
+  <cac:InvoiceLine>
+    <cbc:Item><cbc:Description>${escapeXml(p.beschreibung)}</cbc:Description></cbc:Item>
+    <cbc:InvoicedQuantity>${p.menge}</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">${(p.menge*p.preis).toFixed(2)}</cbc:LineExtensionAmount>
+    ${state.ustModel==='klein'
+      ? `<cbc:TaxExemptionReason>Gemäß §19 UStG wird keine Umsatzsteuer berechnet</cbc:TaxExemptionReason>`
+      : `<cac:TaxCategory><cbc:Percent>${inv.ustSatz}</cbc:Percent></cac:TaxCategory>`}
+  </cac:InvoiceLine>`).join('');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Demo-Struktur, orientiert an XRechnung/EN16931 — nicht validiert, nur zur Veranschaulichung -->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2">
+  <cbc:ID>${inv.rechnungsnummer}</cbc:ID>
+  <cbc:IssueDate>${inv.datum}</cbc:IssueDate>
+  <cbc:DueDate>${inv.leistungsdatum||inv.datum}</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty><cac:Party><cac:PartyName>
+    <cbc:Name>${escapeXml(profile.name||'')}</cbc:Name>
+    <cbc:CompanyID>${escapeXml(profile.steuernummer||'')}</cbc:CompanyID>
+  </cac:PartyName></cac:Party></cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty><cac:Party><cac:PartyName>
+    <cbc:Name>${escapeXml(inv.kunde)}</cbc:Name>
+  </cac:PartyName></cac:Party></cac:AccountingCustomerParty>
+  ${lines}
+  <cbc:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">${netto.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:PayableAmount currencyID="EUR">${gross}</cbc:PayableAmount>
+  </cbc:LegalMonetaryTotal>
+</Invoice>`;
+  const body = `
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${t('xrechnung_btn')}</h3>
+    <p class="lead">${inv.kunde} — ${fmtMoney(gross)}</p>
+    <pre class="code-block">${escapeXml(xml).replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&amp;','&')}</pre>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="closeModal()">${t('cancel')}</button>
+      <button class="btn" onclick="downloadText('${inv.rechnungsnummer}.xml', xrechnungBlobText())">⭳ .xml</button>
+    </div>
+  `;
+  openModal(body);
+}
+function xrechnungBlobText(){
+  // regenerate to avoid stashing large strings in DOM attributes
+  return document.querySelector('.code-block').textContent;
+}
+function escapeXml(s){ return String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+/* ---------------------------- Expenses ---------------------------- */
+function renderExpenses(){
+  const rows = [...state.expenses].reverse().map(e=>`
+    <tr>
+      <td>${e.beschreibung}</td>
+      <td>${catLabel(e.kategorie)}</td>
+      <td>${fmtDate(e.datum)}</td>
+      <td class="num">${fmtMoney(e.betrag)}</td>
+      <td>${e.foto ? `<img src="${e.foto}" style="width:32px; height:32px; object-fit:cover; border-radius:6px; border:1px solid var(--border); cursor:pointer;" onclick="viewReceiptPhoto('${e.id}')">` : ''}</td>
+      <td style="text-align:right;"><button class="btn danger small" onclick="deleteExpense('${e.id}')">${t('delete')}</button></td>
+    </tr>
+  `).join('') || `<tr class="empty-row"><td colspan="6">${t('exp_empty')}</td></tr>`;
+  return `
+    <section class="block card">
+      <div class="section-head"><h2 style="margin:0;">${t('exp_title')}</h2>
+        <button class="btn small" onclick="openExpenseModal()">${t('exp_new')}</button></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>${t('f_receipt_desc')}</th><th>${t('exp_category')}</th><th>${t('exp_date')}</th><th class="num">${t('exp_amount')}</th><th></th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </section>
+  `;
+}
+function deleteExpense(id){ state.expenses = state.expenses.filter(e=>e.id!==id); renderScreen(); }
+let pendingPhotoDataUrl = null;
+function openExpenseModal(){
+  pendingPhotoDataUrl = null;
+  const showVorsteuer = state.ustModel==='regel';
+  const body = `
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${t('new_expense')}</h3><p class="lead"></p>
+    <div class="field"><label>${t('f_receipt_desc')}</label>
+      <input id="f-exp-desc" type="text" oninput="autoSuggest()"></div>
+    <div class="grid-2">
+      <div class="field"><label>${t('exp_category')}</label>
+        <select id="f-exp-cat">
+          <option value="office">${t('cat_office')}</option>
+          <option value="travel">${t('cat_travel')}</option>
+          <option value="marketing">${t('cat_marketing')}</option>
+          <option value="equipment">${t('cat_equipment')}</option>
+          <option value="other">${t('cat_other')}</option>
+        </select>
+        <div id="suggest-tag" style="margin-top:6px;"></div>
+      </div>
+      <div class="field"><label>${t('f_amount')}</label><input id="f-exp-amount" type="number" min="0" step="0.01"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>${t('exp_date')}</label><input id="f-exp-date" type="date" value="${todayISO()}"></div>
+      ${showVorsteuer ? `<div class="field"><label>${t('f_vorsteuer')}</label><input id="f-exp-vst" type="number" min="0" step="0.01"></div>` : ''}
+    </div>
+    <div class="field"><label>${t('f_photo')}</label>
+      <input id="f-exp-photo" type="file" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
+      <div class="muted" style="font-size:11.5px; margin-top:4px;">${t('f_photo_hint')}</div>
+      <div id="photo-preview" style="margin-top:8px;"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="closeModal()">${t('cancel')}</button>
+      <button class="btn" onclick="saveExpense()">${t('save')}</button>
+    </div>
+  `;
+  openModal(body);
+}
+function autoSuggest(){
+  const desc = document.getElementById('f-exp-desc').value;
+  const cat = suggestCategory(desc);
+  document.getElementById('f-exp-cat').value = cat;
+  document.getElementById('suggest-tag').innerHTML = desc ? `<span class="tag">${t('auto_suggest')}: ${catLabel(cat)}</span>` : '';
+}
+function compressImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * (maxDim/w)); w = maxDim; }
+        else if(h > maxDim){ w = Math.round(w * (maxDim/h)); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function handlePhotoSelect(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  compressImage(file, 900, 0.6).then(dataUrl=>{
+    pendingPhotoDataUrl = dataUrl;
+    document.getElementById('photo-preview').innerHTML =
+      `<img src="${dataUrl}" style="max-width:140px; max-height:140px; border-radius:8px; border:1px solid var(--border); display:block;">
+       <button type="button" class="btn secondary small" style="margin-top:6px;" onclick="removePendingPhoto()">${t('photo_remove')}</button>`;
+  }).catch(()=>{ alert(t('photo_too_large')); });
+}
+function removePendingPhoto(){
+  pendingPhotoDataUrl = null;
+  document.getElementById('photo-preview').innerHTML = '';
+  document.getElementById('f-exp-photo').value = '';
+}
+function viewReceiptPhoto(id){
+  const exp = state.expenses.find(e=>e.id===id);
+  if(!exp || !exp.foto) return;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>${exp.beschreibung}</h3>
+    <img src="${exp.foto}" style="width:100%; border-radius:8px; margin-top:10px;">
+    <div class="btn-row"><button class="btn secondary" onclick="closeModal()">${t('cancel')}</button></div>
+  `);
+}
+function saveExpense(){
+  const beschreibung = document.getElementById('f-exp-desc').value.trim();
+  const kategorie = document.getElementById('f-exp-cat').value;
+  const betrag = Number(document.getElementById('f-exp-amount').value)||0;
+  const datum = document.getElementById('f-exp-date').value || todayISO();
+  const vstEl = document.getElementById('f-exp-vst');
+  const vorsteuer = vstEl ? (Number(vstEl.value)||0) : 0;
+  if(!beschreibung || betrag<=0) return;
+  state.expenses.push({id:uid(), beschreibung, kategorie, betrag, datum, vorsteuer, foto:pendingPhotoDataUrl});
+  pendingPhotoDataUrl = null;
+  closeModal();
+  renderScreen();
+}
+/* ---------------------------- Tax reserve screen ---------------------------- */
+function renderReserve(){
+  const {profit, rate, amount} = computeReserve();
+  const explain = state.status==='neben' ? t('reserve_explain_neben') : t('reserve_explain_solo');
+  const pct = Math.min(100, rate*100*2); // visual scale, rate maxes ~45% -> bar rarely full
+  return `
+    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+      <div class="card kpi"><div class="label">${t('reserve_profit')}</div><div class="value">${fmtMoney(profit)}</div></div>
+      <div class="card kpi"><div class="label">${t('reserve_rate')}</div><div class="value">${(rate*100).toFixed(0)}%</div></div>
+      <div class="card kpi"><div class="label">${t('reserve_amount')}</div><div class="value">${fmtMoney(amount)}</div></div>
+    </div>
+    <section class="block card">
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+      <p style="margin-top:16px; color:var(--ink-2); font-size:13.5px; line-height:1.6;">${explain}</p>
+      <div class="note plain">${t('reserve_disclaimer')}</div>
+    </section>
+  `;
+}
+/* ---------------------------- Threshold guard ---------------------------- */
+function renderThreshold(){
+  if(state.ustModel!=='klein'){
+    const collected = totalUstCollected();
+    const vorsteuer = totalVorsteuer();
+    const zahllast = collected - vorsteuer;
+    return `
+      <div class="note" style="margin-bottom:18px;">${t('thresh_not_applicable')}</div>
+      <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+        <div class="card kpi"><div class="label">${t('thresh_ust_owed')}</div><div class="value">${fmtMoney(collected)}</div></div>
+        <div class="card kpi"><div class="label">${t('thresh_vorsteuer')}</div><div class="value">${fmtMoney(vorsteuer)}</div></div>
+        <div class="card kpi"><div class="label">${t('thresh_zahllast')}</div><div class="value">${fmtMoney(zahllast)}</div></div>
+      </div>
+    `;
+  }
+  const revenue = totalInvoiceNetto();
+  const limit = 25000;
+  const hardLimit = 100000;
+  const pct = Math.min(100, (revenue/limit)*100);
+  const pctClass = pct>=100?'critical':(pct>=80?'warning':'');
+  const pctHard = Math.min(100, (revenue/hardLimit)*100);
+  return `
+    <div class="note" style="margin-bottom:18px;">${t('thresh_no_uprating')}</div>
+    <section class="block card">
+      <div class="section-head"><h2 style="margin:0;">${t('thresh_year_limit')}</h2>
+        <span class="tag">${fmtMoney(revenue)} / ${fmtMoney(limit)}</span></div>
+      <div class="progress-track"><div class="progress-fill ${pctClass}" style="width:${pct}%;"></div></div>
+      <div class="progress-caption"><span>${t('thresh_since')} ${fmtDate(state.gruendung)}</span><span>${pct.toFixed(0)}%</span></div>
+    </section>
+    <section class="block card">
+      <div class="section-head"><h2 style="margin:0;">${t('thresh_hard_limit')}</h2>
+        <span class="tag">${fmtMoney(revenue)} / ${fmtMoney(hardLimit)}</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pctHard}%;"></div></div>
+    </section>
+  `;
+}
+/* ---------------------------- Settings ---------------------------- */
+function renderSettings(){
+  const p = state.profile;
+  return `
+    <section class="block card">
+      <h2>${t('settings_title')}</h2>
+      <table>
+        <tbody>
+          <tr><td>${t('settings_status')}</td><td class="num">${state.status==='neben'?t('neben_title'):t('einzel_title')}</td></tr>
+          <tr><td>${t('settings_ustmodel')}</td><td class="num">${state.ustModel==='klein'?t('klein_title'):t('regel_title')}</td></tr>
+          <tr><td>${t('settings_gruendung')}</td><td class="num">${fmtDate(state.gruendung)}</td></tr>
+        </tbody>
+      </table>
+      <div class="btn-row">
+        <button class="btn secondary" onclick="redoOnboarding()">${t('settings_change')}</button>
+        <button class="btn secondary" onclick="resetDemo()">${t('settings_reset')}</button>
+        <button class="btn danger" onclick="clearAllData()">${t('settings_clear')}</button>
+      </div>
+      <p class="muted" style="font-size:11.5px; margin-top:12px; margin-bottom:0;">${t('settings_storage_note')}</p>
+    </section>
+    <section class="block card">
+      <h2>${t('backup_title')}</h2>
+      <p style="color:var(--ink-2); font-size:13.5px;">${t('backup_lead')}</p>
+      <div class="btn-row">
+        <button class="btn" onclick="exportBackup()">${t('backup_export_btn')}</button>
+        <button class="btn secondary" onclick="document.getElementById('f-backup-file').click()">${t('backup_import_btn')}</button>
+        <input id="f-backup-file" type="file" accept="application/json" style="display:none;" onchange="importBackup(event)">
+      </div>
+    </section>
+    <section class="block card">
+      <h2>${t('profile_title')}</h2>
+      <p style="color:var(--ink-2); font-size:13.5px;">${t('profile_lead')}</p>
+      <div class="grid-2">
+        <div class="field"><label>${t('f_profile_name')}</label><input id="f-profile-name" type="text" value="${(p.name||'').replace(/"/g,'&quot;')}"></div>
+        <div class="field"><label>${t('f_profile_steuernummer')}</label><input id="f-profile-steuernummer" type="text" value="${(p.steuernummer||'').replace(/"/g,'&quot;')}"></div>
+        <div class="field"><label>${t('f_profile_strasse')}</label><input id="f-profile-strasse" type="text" value="${(p.strasse||'').replace(/"/g,'&quot;')}"></div>
+        <div class="field"><label>${t('f_profile_plzort')}</label><input id="f-profile-plzort" type="text" value="${(p.plzOrt||'').replace(/"/g,'&quot;')}"></div>
+      </div>
+      <div class="btn-row"><button class="btn" onclick="saveProfile()">${t('profile_save')}</button></div>
+    </section>
+    <section class="block card">
+      <h2>${t('export_title')}</h2>
+      <p style="color:var(--ink-2); font-size:13.5px;">${t('export_lead')}</p>
+      <button class="btn" onclick="exportDatev()">${t('export_btn')}</button>
+      <div class="note plain" style="margin-top:14px;">${t('export_note')}</div>
+    </section>
+  `;
+}
+function saveProfile(){
+  state.profile = {
+    name: document.getElementById('f-profile-name').value.trim(),
+    strasse: document.getElementById('f-profile-strasse').value.trim(),
+    plzOrt: document.getElementById('f-profile-plzort').value.trim(),
+    steuernummer: document.getElementById('f-profile-steuernummer').value.trim(),
+  };
+  renderScreen();
+}
+function exportBackup(){
+  const payload = {
+    _type: 'solobuch-backup', _version: 1, _exportedAt: todayISO(),
+    status: state.status, hauptjobIncome: state.hauptjobIncome, ustModel: state.ustModel,
+    gruendung: state.gruendung, invoices: state.invoices, expenses: state.expenses,
+    invoiceCounter: state.invoiceCounter, profile: state.profile, lang: state.lang,
+  };
+  const stamp = todayISO();
+  downloadText(`solobuch-backup_${stamp}.json`, JSON.stringify(payload, null, 2));
+}
+function importBackup(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let parsed;
+    try{ parsed = JSON.parse(reader.result); }
+    catch(e){ alert(t('backup_import_error')); event.target.value=''; return; }
+    if(!parsed || parsed._type!=='solobuch-backup' || !Array.isArray(parsed.invoices)){
+      alert(t('backup_import_error')); event.target.value=''; return;
+    }
+    if(!confirm(t('backup_import_confirm'))){ event.target.value=''; return; }
+    state.status = parsed.status ?? state.status;
+    state.hauptjobIncome = parsed.hauptjobIncome ?? state.hauptjobIncome;
+    state.ustModel = parsed.ustModel ?? state.ustModel;
+    state.gruendung = parsed.gruendung ?? state.gruendung;
+    state.invoices = parsed.invoices ?? [];
+    state.expenses = parsed.expenses ?? [];
+    state.invoiceCounter = parsed.invoiceCounter ?? state.invoices.length;
+    state.profile = parsed.profile ?? state.profile;
+    state.lang = parsed.lang ?? state.lang;
+    state.onboarded = true;
+    saveState();
+    alert(t('backup_import_success'));
+    event.target.value='';
+    renderApp();
+  };
+  reader.readAsText(file);
+}
+function clearAllData(){
+  if(!confirm(t('settings_clear_confirm'))) return;
+  state.invoices=[]; state.expenses=[];
+  renderScreen();
+}
+function redoOnboarding(){
+  state.onboarded=false; state.step=1;
+  document.getElementById('app-shell').classList.remove('active');
+  renderOnboarding();
+}
+function resetDemo(){
+  state.invoices=[]; state.expenses=[];
+  seedDemoData();
+  renderScreen();
+}
+function exportDatev(){
+  let csv = 'Belegdatum;Belegtext;Betrag;Konto;Gegenkonto;Steuerschluessel;Rechnungsnummer\n';
+  state.invoices.forEach(i=>{
+    const beschreibung = (i.positionen||[]).map(p=>p.beschreibung).join(' + ');
+    csv += `${i.datum};${i.kunde.replace(/;/g,',')} - ${beschreibung.replace(/;/g,',')};${grossOf(i).toFixed(2)};1200;8400;${state.ustModel==='klein'?0:(i.ustSatz||0)};${i.rechnungsnummer||''}\n`;
+  });
+  state.expenses.forEach(e=>{
+    csv += `${e.datum};${e.beschreibung.replace(/;/g,',')};-${Number(e.betrag).toFixed(2)};4900;1200;${e.vorsteuer?9:0}\n`;
+  });
+  downloadText('steuerberater-paket_demo.csv', csv);
+}
+/* ---------------------------- Modal + download helpers ---------------------------- */
+function openModal(html){
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-backdrop').classList.add('active');
+}
+function closeModal(){ document.getElementById('modal-backdrop').classList.remove('active'); }
+document.getElementById('modal-backdrop').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-backdrop') closeModal();
+});
+function downloadText(filename, text){
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+/* ---------------------------- Persistence (localStorage) ---------------------------- */
+const STORAGE_KEY = 'solobuch_demo_state_v1';
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){
+    // Speicher nicht verfügbar (z.B. privater Modus) — App funktioniert weiter, nur ohne Persistenz.
+    console.warn('Konnte Daten nicht lokal speichern:', e);
+  }
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const saved = JSON.parse(raw);
+    Object.assign(state, saved);
+    return true;
+  }catch(e){
+    console.warn('Konnte gespeicherte Daten nicht laden:', e);
+    return false;
+  }
+}
+/* ---------------------------- Boot ---------------------------- */
+try{
+  var bf = document.getElementById('boot-fallback');
+  if(bf) bf.remove();
+  const hadSavedData = loadState();
+  if(hadSavedData && state.onboarded){
+    document.getElementById('onboarding').style.display='none';
+    document.getElementById('app-shell').classList.add('active');
+    renderApp();
+  }else{
+    renderOnboarding();
+  }
+  if('serviceWorker' in navigator){
+    try{ navigator.serviceWorker.register('sw.js'); }catch(e){}
+  }
+}catch(e){
+  showBootError((e && e.message) ? e.message : String(e));
+}
+</script>
+</body>
+</html>
